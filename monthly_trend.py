@@ -27,19 +27,20 @@ with open('output.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     index = []
 
+    # construct the headers of the file, and write as the first row
     index.append('AppId')
     for i in range(1, 13):
         index.append(str(i))
-
     writer.writerow(index)
-    if len(sys.argv) > 1:
+
+    if len(sys.argv) > 1: # if we have at least one input from commandline
         for appid in sys.argv[1:]:
             output = [appid]
-            for i in range(1, 13):
+            for i in range(1, 13): # construct the initial output line
                 output.append('0')
             for filepath in filepaths:
                 if filepath.endswith('.csv'):
-                    if filepath[:filepath.index('.csv')] in index:
+                    if filepath[:filepath.index('.csv')] in index: # the file name without .csv, which should be a month in numbers
                         path = filepath
                         value = parse_file(path, appid)
                         output[int(filepath[:filepath.index('.csv')])] = str(value)
