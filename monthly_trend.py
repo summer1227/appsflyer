@@ -14,6 +14,12 @@ import csv
 
 def parse_file(path, appid):
     df = pd.read_csv(path)
+    if appid == 0: # if appid = 0, return total number of events in this file
+        total = 0
+        for i in range(len(df)):
+            total += int(df.ix[i]['In-App Events'].replace(',','')) # to correctly handle comma-separated int
+        return total
+
     for i in range(len(df)):
         if df.ix[i]['App Name'] == appid: # App Name
             value = df.ix[i]['In-App Events']  # In-App Events
@@ -47,3 +53,14 @@ with open('output.csv', 'w', newline='') as csvfile:
 
             writer.writerow(output)
 
+        # write total number of events as the last row
+        output = ['Total events']
+        for i in range(1, 13):  # construct the initial output line
+            output.append('0')
+        for filepath in filepaths:
+            if filepath.endswith('.csv'):
+                if filepath[:filepath.index('.csv')] in index:  # the file name without .csv, which should be a month in numbers
+                    path = filepath
+                    value = parse_file(path, 0)
+                    output[int(filepath[:filepath.index('.csv')])] = str(value)
+        writer.writerow(output)
