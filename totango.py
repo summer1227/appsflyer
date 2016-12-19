@@ -1,7 +1,7 @@
 # This script analyzes the raw data exported from Totango
 
 """
-1. According to the pre-defined weight, calculate the quantitative measure of the advance of the marketer of the app/client.
+1. According to the pre-defined weight, calculate the quantitative measure of the advancement of the marketer of the app/client.
    The dimensions we currently consider include if the marketer uses (may also include how deep)
    - cohort
    - push (N/A)
@@ -29,7 +29,6 @@ The columns from the raw data are as follows:
     - RightNow (14d)
     - dataexport-installs (14d)
 
-
 """
 
 
@@ -47,6 +46,10 @@ metrics = {
 }
 
 # calculate the advance score according to the metric defined
+"""
+line: a row in the raw data, represents an app and its associated information
+indices: map each key in "metrics" to its column index in the raw data
+"""
 def parse_line(line, indices):
     score = 0
     for key in metrics:
@@ -63,29 +66,28 @@ def parse_file(path, writer):
         indices = {} # store the mapping between metrics and the index in csv
         for line in reader:
             if counter == 0: # header line
-
                 for i in range(len(line)):
                     for key in metrics:
                         if key in line[i]:
                             indices[key] = i
                 counter += 1
+                # output the header line
                 line.append('Score')
                 writer.writerow(line)
             else:
                 score = parse_line(line, indices)
+                # output the original line from raw data, plus the score
                 output = line
                 output.append(str(score))
                 writer.writerow(output)
 
 
+# Main function starts here
 filepaths = os.listdir('.')  # all files in the current directory
 for filepath in filepaths:
     if filepath.endswith('.csv'):
         with open('output.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            # header of the output file
-            # index = ['Name', 'Account id', 'Status', 'Success Manager', 'Account Sub Status', 'Name of Account','Score']
-            # writer.writerow(index)
             parse_file(filepath, writer)
         break
 
