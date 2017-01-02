@@ -1,66 +1,96 @@
 # this script analyzes the monthly aggregated report from biz_dashboard
 """
-1. read all files in current directory
-2. find the line with the specific appid (input from command line)
-3. read the corresponding install/events value
-4. put together as a monthly trend
+It can be used to analyzed monthly reports by app, account, geo, and vertical
+1. It scans all CSV files in the current directory
+2. It reads an input from command line
+3. Plot the monthly trend of the input item across all files
 """
 
 import os
-import pandas as pd
 import sys
 import csv
+import matplotlib.pyplot as plt
+import random
 
 
-def parse_file(path, appid):
-    df = pd.read_csv(path)
-    if appid == 0: # if appid = 0, return total number of events in this file
-        total = 0
-        for i in range(len(df)):
-            total += int(df.ix[i]['In-App Events'].replace(',','')) # to correctly handle comma-separated int
-        return total
+OS = 'android' # by default, search for iOS files
+PLOT = 'rank' # rank first or share first
 
-    for i in range(len(df)):
-        if df.ix[i]['App Name'] == appid: # App Name
-            value = df.ix[i]['In-App Events']  # In-App Events
-            return value
-    return 0
+# search appid in the given file, return the rank and the share
+# if not found, return 0
+def process_file(file, appid):
+    reader = csv.reader(file)
+    rank = 0
+    share = 0
+    for line in reader:
+        if line[1] == appid:
+            rank = line[0]
+            share = line[2]
+            break
+    return (rank, share)
+
+def plot_figure(index, value, PLOT):
+    for key in value.keys():
+        if PLOT == 'share':
+            plt.plot(index, value[key][1])
+            for (x, rank, share) in zip(index, value[key][0], value[key][1]):
+                plt.text(x, random.uniform(0.95,1)*share, str(share) + ' ('+str(rank) + ')')
+        else: # 'rank'
+            plt.plot(index, value[key][0])
+            for (x, rank, share) in zip(index, value[key][0], value[key][1]):
+                plt.text(x, random.uniform(0.95, 1)*rank, str(rank) + ' (' + str(share) + ')')
+    if PLOT == 'rank':
+        plt.gca().invert_yaxis()  # invert Y axis to better display ranking
+    plt.legend(value.keys())
+    plt.show()
 
 
-filepaths = os.listdir('.')  # all files in the current directory
+def scan_files(OS):
+    filepaths = os.listdir('.')  # all files in the current directory
+    filenames = {}
+    for filepath in filepaths:
+        if filepath.endswith('.csv'):
+            result = filepath[:-4].split('_')  # get rid of '.csv', then split on '_'
+            if len(result) > 2 and int(result[-1]) in range(13) and result[-2] == OS:  # last element is a month and of the right OS
+                filenames[int(result[-1])] = filepath
+    return filenames
 
-with open('output.csv', 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    index = []
+# read topN from a given file, and return the name
+def get_topN(reader, N):
+    names = []
+    index = 0
+    for line in reader:
+        if index == 0:
+            index = 1
+        else:
+            names.append(line[1])
+            index += 1
+        if index > N:
+            break
+    return names
 
-    # construct the headers of the file, and write as the first row
-    index.append('AppId')
-    for i in range(1, 13):
-        index.append(str(i))
-    writer.writerow(index)
+# Main function starts here
 
-    if len(sys.argv) > 1: # if we have at least one input from commandline
-        for appid in sys.argv[1:]:
-            output = [appid]
-            for i in range(1, 13): # construct the initial output line
-                output.append('0')
-            for filepath in filepaths:
-                if filepath.endswith('.csv'):
-                    if filepath[:filepath.index('.csv')] in index: # the file name without .csv, which should be a month in numbers
-                        path = filepath
-                        value = parse_file(path, appid)
-                        output[int(filepath[:filepath.index('.csv')])] = str(value)
+# read input from command line
+if len(sys.argv) > 1: # if we have at least one input from commandline
+    Y = {}
+    for appid in sys.argv[1:]:
+        index = []
+        ranks = []
+        shares = []
+        filenames = scan_files(OS)
+        for key in sorted(filenames.keys()):
+            filename = filenames[key]
+            index.append(key)
+            with open(filename, newline='', encoding='utf-8') as f:
+                print("Processing " + "2016." + str(key))
+                (rank, share) = process_file(f, appid)
+                ranks.append(int(rank))
+                shares.append(float(share.strip('%')))
+        Y[appid] = (ranks, shares)
+    plot_figure(index, Y, PLOT)
 
-            writer.writerow(output)
 
-        # write total number of events as the last row
-        output = ['Total events']
-        for i in range(1, 13):  # construct the initial output line
-            output.append('0')
-        for filepath in filepaths:
-            if filepath.endswith('.csv'):
-                if filepath[:filepath.index('.csv')] in index:  # the file name without .csv, which should be a month in numbers
-                    path = filepath
-                    value = parse_file(path, 0)
-                    output[int(filepath[:filepath.index('.csv')])] = str(value)
-        writer.writerow(output)
+
+
+
