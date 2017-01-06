@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import random
 
 
-OS = 'android' # by default, search for iOS files
+OS = 'all' # "ios", "android", "all"
 PLOT = 'rank' # rank first or share first
 
 # search appid in the given file, return the rank and the share
@@ -29,19 +29,20 @@ def process_file(file, appid):
             break
     return (rank, share)
 
+# value should be of the dictionary format: {appid:(rank, share)}
 def plot_figure(index, value, PLOT):
     for key in value.keys():
-        if PLOT == 'share':
+        if PLOT == 'share': # Y axis plot based on percentage
             plt.plot(index, value[key][1])
             for (x, rank, share) in zip(index, value[key][0], value[key][1]):
                 plt.text(x, random.uniform(0.95,1)*share, str(share) + ' ('+str(rank) + ')')
-        else: # 'rank'
+        elif PLOT == 'rank': # Y axis plot based on ranking
             plt.plot(index, value[key][0])
             for (x, rank, share) in zip(index, value[key][0], value[key][1]):
                 plt.text(x, random.uniform(0.95, 1)*rank, str(rank) + ' (' + str(share) + ')')
     if PLOT == 'rank':
         plt.gca().invert_yaxis()  # invert Y axis to better display ranking
-    plt.legend(value.keys())
+    plt.legend(value.keys(), loc=4)
     plt.show()
 
 
@@ -53,6 +54,9 @@ def scan_files(OS):
             result = filepath[:-4].split('_')  # get rid of '.csv', then split on '_'
             if len(result) > 2 and int(result[-1]) in range(13) and result[-2] == OS:  # last element is a month and of the right OS
                 filenames[int(result[-1])] = filepath
+            elif OS == 'all' and len(result) == 2: # Don't distinguish OS, so will process files like "1_account.csv"
+                filenames[int(result[0])] = filepath
+
     return filenames
 
 # read topN from a given file, and return the name
@@ -69,7 +73,9 @@ def get_topN(reader, N):
             break
     return names
 
+# --------------------------
 # Main function starts here
+# --------------------------
 
 # read input from command line
 if len(sys.argv) > 1: # if we have at least one input from commandline
