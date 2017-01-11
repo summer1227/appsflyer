@@ -13,33 +13,53 @@ import matplotlib.pyplot as plt
 import random
 
 
-OS = 'all' # "ios", "android", "all"
-PLOT = 'rank' # rank first or share first
+OS = 'ios' # "ios", "android", "all"
+PLOT = 'install' # what metric to plot: rank, share, or install
 
 # search appid in the given file, return the rank and the share
 # if not found, return 0
 def process_file(file, appid):
     reader = csv.reader(file)
+    # get the index according to column name
+    rank_index = 0
+    share_index = 0
+    install_index = 0
+    first = next(reader) # first row
+    for i in range(len(first)):
+        if '#' in first[i]:
+            rank_index = i
+        elif '%' in first[i]:
+            share_index = i
+        elif 'Organic' == first[i]:
+            install_index = i
+
     rank = 0
     share = 0
+    install = 0
     for line in reader:
         if line[1] == appid:
-            rank = line[0]
-            share = line[2]
+            rank = line[rank_index]
+            share = line[share_index]
+            install = line[install_index] # non-organic install
             break
-    return (rank, share)
+    return (rank, share, install)
 
 # value should be of the dictionary format: {appid:(rank, share)}
 def plot_figure(index, value, PLOT):
     for key in value.keys():
         if PLOT == 'share': # Y axis plot based on percentage
             plt.plot(index, value[key][1])
-            for (x, rank, share) in zip(index, value[key][0], value[key][1]):
-                plt.text(x, random.uniform(0.95,1)*share, str(share) + ' ('+str(rank) + ')')
+            for (x, share) in zip(index, value[key][1]):
+                plt.text(x, random.uniform(0.95,1)*share, str(share))
         elif PLOT == 'rank': # Y axis plot based on ranking
             plt.plot(index, value[key][0])
-            for (x, rank, share) in zip(index, value[key][0], value[key][1]):
-                plt.text(x, random.uniform(0.95, 1)*rank, str(rank) + ' (' + str(share) + ')')
+            for (x, rank) in zip(index, value[key][0]):
+                plt.text(x, random.uniform(0.92, 1)*rank, str(rank))
+        elif PLOT == 'install':
+            plt.plot(index, value[key][2])
+            for (x, install) in zip(index, value[key][2]):
+                plt.text(x, random.uniform(0.94, 1)*install, str(install))
+
     if PLOT == 'rank':
         plt.gca().invert_yaxis()  # invert Y axis to better display ranking
     plt.legend(value.keys(), loc=4)
@@ -84,16 +104,18 @@ if len(sys.argv) > 1: # if we have at least one input from commandline
         index = []
         ranks = []
         shares = []
+        installs = []
         filenames = scan_files(OS)
         for key in sorted(filenames.keys()):
             filename = filenames[key]
             index.append(key)
             with open(filename, newline='', encoding='utf-8') as f:
                 print("Processing " + "2016." + str(key))
-                (rank, share) = process_file(f, appid)
+                (rank, share, install) = process_file(f, appid)
                 ranks.append(int(rank))
-                shares.append(float(share.strip('%')))
-        Y[appid] = (ranks, shares)
+                shares.append(float(share.replace('%', '')))
+                installs.append(int(install.replace(',', '')))
+        Y[appid] = (ranks, shares, installs)
     plot_figure(index, Y, PLOT)
 
 
